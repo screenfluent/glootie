@@ -1,0 +1,34 @@
+# Dev dependencies (symlinks to pi runtime for tests)
+node_modules/
+
+# Site build artifacts
+site/.wrangler/
+site/node_modules/
+
+# Ralph orchestrator state
+.ralph/
+
+# Ignore all skills by default
+skills/*/
+
+# Whitelist tracked skills
+!skills/tasker-xml/
+!skills/termux-clipboard/
+!skills/termux-contacts/
+!skills/termux-device/
+!skills/termux-dialog/
+!skills/termux-location/
+!skills/termux-media/
+!skills/termux-notification/
+!skills/termux-sms/
+!skills/termux-stt/
+!skills/termux-tts/
+!skills/update-pi/
+!skills/rho-cloud-onboard/
+!skills/rho-cloud-email/
+!skills/rho-onboard/
+!skills/memory-clean/
+!skills/session-search/
+!skills/vault-clean/
+!skills/soul-update/
+.worktrees/

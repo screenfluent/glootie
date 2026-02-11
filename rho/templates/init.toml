@@ -1,0 +1,62 @@
+# Rho Configuration
+# Edit this file, then run `rho sync` to apply changes.
+# Docs: https://github.com/mikeyobrien/rho
+
+# ── Agent Identity ──────────────────────────────────────
+
+[agent]
+name = "rho"                          # Your agent's name
+
+# ── Modules ─────────────────────────────────────────────
+# Enable (true) or comment out / set false to disable.
+# Core modules are always on and cannot be disabled.
+
+[modules.core]
+heartbeat = true                      # Heartbeat daemon, check-ins, and memory consolidation
+memory = true                         # Memory browser and viewer
+
+[modules.knowledge]
+vault = true                          # Knowledge vault with full-text search and orphan cleanup
+
+[modules.tools]
+brave-search = true                   # Web search via Brave Search API
+x-search = true                       # X/Twitter search via xAI Grok
+email = false                         # Agent email via Rho Cloud (rhobot.dev)
+subagents = true                      # Subagent delegation with chains, parallel, and async
+agent-sop = true                      # Standard Operating Procedures for structured agent workflows
+
+# Skills-only modules (no extensions, just SKILL.md files)
+[modules.skills]
+session-search = true                 # Search across pi session logs
+update-pi = true                      # Update pi coding agent to latest version
+
+[modules.ui]
+usage-bars = true                     # Token usage display bars
+moltbook = true                       # Moltbook viewer
+
+# ── Module Settings ─────────────────────────────────────
+# Configure individual modules below.
+# Settings only apply when the corresponding module is enabled.
+
+[settings.heartbeat]
+interval = "30m"                      # Check-in interval (e.g., "15m", "1h", "2h")
+# prompt = "~/.rho/heartbeat-prompt.txt"  # Custom heartbeat prompt
+
+# Tmux integration (used by `rho start/stop/status/trigger`)
+# tmux_socket = "rho"                 # Name of the dedicated tmux socket (passed as: tmux -L <socket>)
+# tmux_config = "builtin"             # "builtin" = use the tmux config shipped with your installed rho version
+# tmux_config = "~/.rho/tmux.conf"    # Or set an explicit path to your own tmux config
+
+[settings.email]
+# handle = ""                         # Your rhobot.dev email handle
+
+# [settings.brave-search]
+# api_key_env = "BRAVE_API_KEY"       # Environment variable for API key
+
+# ── Web UI ─────────────────────────────────────────────
+# Browser-based chat interface and state file editor.
+# Launch with: rho web
+
+[settings.web]
+enabled = false                       # Auto-start with `rho start`
+port = 3141                           # Server port (localhost only)

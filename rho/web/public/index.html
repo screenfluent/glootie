@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rho Web UI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css"
+    />
+    <link rel="stylesheet" href="/css/style.css?v=20260211v" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+    <script src="/js/app.js?v=20260211v" defer></script>
+    <script src="/js/chat.js?v=20260211v" defer></script>
+    <script src="/js/config.js?v=20260211v" defer></script>
+    <script src="/js/memory.js?v=20260211v" defer></script>
+
+    <script src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
+  </head>
+  <body>
+    <div class="app" x-data="rhoApp()">
+      <nav class="nav">
+        <div class="nav-inner">
+          <div class="nav-seg nav-logo">rho</div>
+          <div class="nav-seg nav-title">web ui</div>
+          <div class="nav-tabs" role="tablist" aria-label="Rho views">
+            <button
+              class="nav-tab"
+              :class="{ active: view === 'chat' }"
+              @click="setView('chat')"
+              type="button"
+              role="tab"
+              :aria-selected="view === 'chat'"
+            >
+              Chat
+            </button>
+            <button
+              class="nav-tab"
+              :class="{ active: view === 'memory' }"
+              @click="setView('memory')"
+              type="button"
+              role="tab"
+              :aria-selected="view === 'memory'"
+            >
+              Brain
+            </button>
+            <a
+              class="nav-tab"
+              href="/review/lobby.html"
+              role="tab"
+              x-show="activeReviewCount > 0"
+              x-cloak
+            >
+              Review
+              <span
+                class="nav-tab-badge"
+                x-text="activeReviewCount"
+              ></span>
+            </a>
+            <button
+              class="nav-tab nav-tab-icon"
+              :class="{ active: view === 'config' }"
+              @click="setView('config')"
+              type="button"
+              role="tab"
+              :aria-selected="view === 'config'"
+            >
+              <span>&#x2699;</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main class="main">
+        <section class="view chat-view" x-show="view === 'chat'" x-cloak role="tabpanel">
+          <div class="view-header">// chat</div>
+          <div class="view-title">Session viewer</div>
+          <div class="view-body" x-data="rhoChat()" x-init="init()">
+            <div class="chat-layout">
+              <!-- Mobile toggle for sessions -->
+              <button
+                class="mobile-panel-toggle"
+               
+                type="button"
+                @click="toggleSessionsPanel()"
+                :aria-expanded="showSessionsPanel"
+              >
+                <span class="mobile-panel-toggle-label">
+                  <span x-text="activeSession ? (activeSession.name || 'Session') : 'Sessions'"></span>
+                  <span class="mobile-panel-toggle-count" x-text="sessionsTotal + ' session' + (sessionsTotal === 1 ? '' : 's')"></span>
+                </span>
+                <span class="mobile-panel-toggle-arrow">&#x25BC;</span>
+              </button>
+              <aside class="chat-sessions" :class="{ collapsed: !showSessionsPanel }">
+                <div class="chat-section-header">
+                  <div class="chat-section-title">Sessions</div>
+                  <button class="btn btn-sm btn-green" type="button" @click="newSession()" :disabled="isForking">+ New</button>
+                </div>
+                <div class="chat-section-meta chat-loading-inline" x-show="isLoadingSessions">
+                  <span class="loading-spinner-sm"></span>
+                  <span>Loading...</span>
+                </div>
+                <div class="chat-section-meta chat-error" x-show="error" x-text="error"></div>
+                <div class="chat-list" @scroll="onSessionsScroll($event)">
+                  <template x-for="session in sessions" :key="session.id">
+                    <button
+                      class="chat-session"
+                      :class="{ active: session.id === activeSessionId }"
+                      type="button"
+                      @click="selectSession(session.id)"
+                    >
+                      <div class="chat-session-title" x-text="session.name || session.firstPrompt || (session.messageCount > 0 ? session.id.substring(0, 8) : 'New session')"></div>
+                      <div class="chat-session-id" x-show="session.firstPrompt || session.name" x-text="session.id.substring(0, 8)"></div>
+                      <div class="chat-session-meta">
+                        <span x-text="formatTimestampShort(session.timestamp)"></span>
+                        <span x-text="messageCountLabel(session)"></span>
+                        <span
+                          class="chat-session-badge fork"
+                          x-show="sessionForkBadge(session)"
+                          x-text="sessionForkBadge(session)"
+                          :title="sessionForkTitle(session)"
+                        ></span>
+                      </div>
+                    </button>
+                  </template>
+                  <div class="chat-loading-more" x-show="isLoadingMore">
+                    <span class="loading-spinner-sm"></span> Loading...
+                  </div>
+                  <div class="chat-session-count" x-show="sessions.length > 0 && !allSessionsLoaded" x-text="`${sessions.length} of ${sessionsTotal}`"></div>
+                  <div class="chat-empty-state" x-show="!isLoadingSessions && sessions.length === 0">
+                    <span class="empty-icon">&#x1F4C1;</span>
+                    <span>No sessions yet</span>
+                    <span class="empty-hint">Sessions appear here when you start using Rho CLI</span>
+                  </div>
+                </div>
+              </aside>
+
+              <section class="chat-thread">
+                <!-- Maximized top bar (only visible in fullscreen) -->
+                <div class="maximized-bar" x-show="chatMaximized" x-transition.opacity>
+                  <div class="maximized-bar-info">
+                    <span class="maximized-bar-title" x-text="activeSession ? sessionLabel(activeSession) : 'rho'"></span>
+                    <span class="chat-live-badge" x-show="isForkActive()">● LIVE</span>
+                  </div>
+                  <button class="maximized-bar-exit" type="button" @click="toggleMaximized()" title="Exit fullscreen (Esc)">⊡</button>
+                </div>
+
+                <div class="chat-thread-header">
+                  <div>
+                    <div class="chat-thread-title" x-text="activeSession ? sessionLabel(activeSession) : 'Select a session'"></div>
+                    <div class="chat-thread-meta" x-show="activeSession" x-text="messageCountLabel(activeSession)"></div>
+                  </div>
+                  <div class="chat-thread-status">
+                    <span class="chat-live-badge" x-show="isForkActive()">● LIVE</span>
+                    <span class="chat-readonly-badge" x-show="!isForkActive() && activeSession">READ-ONLY</span>
+                  </div>
+                  <div class="chat-thread-actions">
+                    <button
+                      class="btn btn-sm btn-green"
+                      type="button"
+                      @click="forkFromLatest()"
+                      :disabled="!activeSession || !hasForkPoints() || isForking"
+                    >
+                      <span x-show="!isForking">Fork from latest</span>
+                      <span x-show="isForking">Forking...</span>
+                    </button>
+                    <button
+                      class="btn btn-sm btn-green"
+                      type="button"
+                      @click="toggleMaximized()"
+                      :title="chatMaximized ? 'Exit fullscreen' : 'Fullscreen chat'"
+                    >
+                      <span x-text="chatMaximized ? '⊡' : '⊞'"></span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Reconnection Banner -->
+                <div class="reconnect-banner" x-show="showReconnectBanner" x-cloak>
+                  <span class="reconnect-icon">&#x26A0;</span>
+                  <span>Connection lost. Reconnecting...</span>
+                  <button class="btn btn-ghost btn-sm" type="button" @click="manualReconnect()">
+                    Retry now
+                  </button>
+                </div>
+
+                <div class="chat-thread-body" x-ref="thread" @scroll="handleThreadScroll()">
+                  <div class="chat-loading" x-show="isLoadingSession">
+                    <span class="loading-spinner"></span>
+                    <span>Loading session...</span>
+                  </div>
+                  <div class="chat-empty" x-show="!isLoadingSession && activeSession && !hasMessages()">
+                    <span class="empty-icon">&#x1F4AC;</span>
+                    <span x-text="isForkActive() ? 'Type a message below to start chatting.' : 'No messages yet. Fork this session to start chatting.'"></span>
+                  </div>
+                  <div class="chat-empty" x-show="!activeSession && !isLoadingSession">
+                    <span class="empty-icon">&#x1F4C2;</span>
+                    <span>Select a session from the sidebar to view messages.</span>
+                  </div>
+
+                  <!-- Streaming indicator (dots removed — composer border pulses instead) -->
+
+                  <template x-for="message in renderedMessages" :key="message.id">
+                    <article class="chat-message" :class="message.role">
+                      <div class="chat-message-meta">
+                        <span class="chat-message-role" x-text="message.roleLabel"></span>
+                        <div class="chat-message-meta-right">
+                          <button
+                            class="chat-fork-button"
+                            type="button"
+                            x-show="message.role === 'user' && canForkMessage(message)"
+                            @click="forkFromEntry(message.id)"
+                            :title="messageForkPreview(message)"
+                          >
+                            Fork from here
+                          </button>
+                          <span class="chat-message-time" x-text="message.timestamp"></span>
+                        </div>
+                      </div>
+                      <div class="chat-message-body">
+                        <template x-for="part in message.parts" :key="part.key">
+                          <div>
+                            <template x-if="part.type === 'text' && part.render === 'html'">
+                              <div class="chat-text" x-html="part.content"></div>
+                            </template>
+                            <template x-if="part.type === 'text' && part.render === 'text'">
+                              <div class="chat-text" x-text="part.content"></div>
+                            </template>
+                            <template x-if="part.type === 'thinking'">
+                              <div class="chat-block thinking" x-data="{ open: false }">
+                                <button class="chat-block-toggle" type="button" @click="open = !open">
+                                  <span class="thinking-icon">💭</span>
+                                  Thinking
+                                  <span class="tool-chevron" x-text="open ? '▾' : '▸'"></span>
+                                </button>
+                                <div class="thinking-preview" x-show="!open" x-text="part.preview"></div>
+                                <div class="chat-block-body" x-show="open" x-html="part.content"></div>
+                              </div>
+                            </template>
+                            <template x-if="part.type === 'tool_call'">
+                              <div class="chat-block tool" x-data="{ open: false }">
+                                <button class="chat-block-toggle" type="button" @click="open = !open">
+                                  <span class="tool-status-icon" :class="part.status" x-text="part.status === 'running' ? '⟳' : part.status === 'error' ? '✗' : '✓'"></span>
+                                  <span class="tool-name" x-text="part.name"></span>
+                                  <span class="tool-args-hint" x-text="part.argsSummary"></span>
+                                  <span class="tool-duration" x-show="part.duration" x-text="part.duration"></span>
+                                  <span class="tool-chevron" x-text="open ? '▾' : '▸'"></span>
+                                </button>
+                                <div class="tool-preview" x-show="!open && part.outputPreview" x-text="part.outputPreview"></div>
+                                <div class="chat-block-body" x-show="open">
+                                  <div class="chat-block-label">args</div>
+                                  <pre><code x-text="part.args"></code></pre>
+                                  <div class="chat-block-label" x-show="part.output">output</div>
+                                  <pre x-show="part.output"><code x-text="part.output"></code></pre>
+                                </div>
+                              </div>
+                            </template>
+                            <template x-if="part.type === 'bash'">
+                              <div class="chat-block bash">
+                                <div class="chat-block-label">bash</div>
+                                <pre class="bash-command"><code x-text="part.command"></code></pre>
+                                <pre class="bash-output" x-show="part.output"><code x-text="part.output"></code></pre>
+                              </div>
+                            </template>
+                            <template x-if="part.type === 'compaction'">
+                              <div class="chat-banner compaction">
+                                Context compacted · <span x-text="part.summary"></span>
+                              </div>
+                            </template>
+                            <template x-if="part.type === 'summary'">
+                              <div class="chat-banner summary">
+                                Summary · <span x-text="part.summary"></span>
+                              </div>
+                            </template>
+                            <template x-if="part.type === 'retry'">
+                              <div class="chat-banner retry">
+                                Retry · <span x-text="part.summary"></span>
+                              </div>
+                            </template>
+                            <template x-if="part.type === 'error'">
+                              <div class="chat-banner error" x-text="part.text"></div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+                      <div class="chat-usage" x-show="message.usageLine" x-text="message.usageLine"></div>
+                    </article>
+                  </template>
+                </div>
+
+                <div class="chat-controls" x-show="isForkActive()">
+                  <div class="chat-controls-left">
+                    <div class="chat-control-group">
+                      <label class="chat-control-label">Model</label>
+                      <select
+                        class="chat-control-select"
+                        @change="setModel(availableModels.find(m => modelDropdownLabel(m) === $event.target.value))"
+                        :disabled="!canSwitchModel()"
+                      >
+                        <template x-for="model in availableModels" :key="modelDropdownLabel(model)">
+                          <option
+                            :value="modelDropdownLabel(model)"
+                            :selected="isCurrentModel(model)"
+                            x-text="modelDropdownLabel(model)"
+                          ></option>
+                        </template>
+                      </select>
+                    </div>
+                    <button
+                      class="btn btn-ghost chat-control-btn"
+                      type="button"
+                      @click="cycleThinkingLevel()"
+                      :disabled="!canChangeThinking()"
+                      :title="`Thinking level: ${thinkingLevelLabel()}`"
+                    >
+                      Thinking: <span x-text="thinkingLevelLabel()"></span>
+                    </button>
+                  </div>
+                  <div class="chat-controls-right">
+                    <button
+                      class="btn btn-danger chat-control-btn"
+                      type="button"
+                      @click="abort()"
+                      :disabled="!canAbort()"
+                      x-show="isStreaming"
+                    >
+                      Abort
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Extension widget (above input) -->
+                <div class="chat-widget" x-show="hasWidget()" x-cloak>
+                  <div class="chat-widget-content" x-html="widgetContent()"></div>
+                  <button class="chat-widget-close" type="button" @click="extensionWidget = null">&times;</button>
+                </div>
+
+                <form class="chat-composer" :class="{ streaming: isStreaming }" @submit.prevent="handlePromptSubmit()" x-show="isForkActive()">
+                  <textarea
+                    class="chat-composer-input"
+                    x-ref="composerInput"
+                    x-model="promptText"
+                    :placeholder="inputPlaceholder()"
+                    rows="2"
+                    :disabled="isSendingPrompt || isForking"
+                    @keydown="handleComposerKeydown($event)"
+                    @input="handleComposerInput($event)"
+                  ></textarea>
+                  <div class="chat-composer-actions">
+                    <button
+                      class="btn btn-ghost"
+                      type="button"
+                      @click="sendFollowUp()"
+                      :disabled="!promptText.trim() || !isStreaming"
+                      x-show="isStreaming"
+                      title="Queue as follow-up (sent after current response)"
+                    >
+                      Follow-up
+                    </button>
+                    <button class="btn" type="submit" :disabled="!promptText.trim() || isSendingPrompt || isForking">
+                      <span x-text="submitButtonLabel()"></span>
+                    </button>
+                  </div>
+                  <div class="chat-composer-hints" x-show="isForkActive()">
+                    Enter to send · Shift+Enter for newline
+                  </div>
+                </form>
+
+                <!-- Extension UI Dialog Overlay -->
+                <div class="ext-dialog-overlay" x-show="extensionDialog" x-cloak @click.self="dismissDialog(null)">
+                  <!-- Select Dialog -->
+                  <template x-if="extensionDialog?.type === 'select'">
+                    <div class="ext-dialog">
+                      <div class="ext-dialog-header">
+                        <div class="ext-dialog-title" x-text="extensionDialog.title"></div>
+                        <button class="ext-dialog-close" type="button" @click="dismissDialog(null)">&times;</button>
+                      </div>
+                      <div class="ext-dialog-description" x-show="extensionDialog.description" x-text="extensionDialog.description"></div>
+                      <div class="ext-dialog-options">
+                        <template x-for="option in extensionDialog.options" :key="option.value">
+                          <button class="ext-dialog-option" type="button" @click="selectDialogOption(option)">
+                            <span class="ext-dialog-option-label" x-text="option.label"></span>
+                            <span class="ext-dialog-option-desc" x-show="option.description" x-text="option.description"></span>
+                          </button>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Confirm Dialog -->
+                  <template x-if="extensionDialog?.type === 'confirm'">
+                    <div class="ext-dialog">
+                      <div class="ext-dialog-header">
+                        <div class="ext-dialog-title" x-text="extensionDialog.title"></div>
+                        <button class="ext-dialog-close" type="button" @click="dismissDialog(false)">&times;</button>
+                      </div>
+                      <div class="ext-dialog-description" x-show="extensionDialog.description" x-text="extensionDialog.description"></div>
+                      <div class="ext-dialog-actions">
+                        <button class="btn btn-ghost" type="button" @click="confirmDialogNo()" x-text="extensionDialog.cancelLabel"></button>
+                        <button class="btn" type="button" @click="confirmDialogYes()" x-text="extensionDialog.confirmLabel"></button>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Input Dialog -->
+                  <template x-if="extensionDialog?.type === 'input'">
+                    <div class="ext-dialog">
+                      <div class="ext-dialog-header">
+                        <div class="ext-dialog-title" x-text="extensionDialog.title"></div>
+                        <button class="ext-dialog-close" type="button" @click="dismissDialog(null)">&times;</button>
+                      </div>
+                      <div class="ext-dialog-description" x-show="extensionDialog.description" x-text="extensionDialog.description"></div>
+                      <form class="ext-dialog-form" @submit.prevent="submitInputDialog()">
+                        <input
+                          class="ext-dialog-input"
+                          type="text"
+                          x-model="extensionDialog.inputValue"
+                          :placeholder="extensionDialog.placeholder"
+                          autofocus
+                        />
+                        <div class="ext-dialog-actions">
+                          <button class="btn btn-ghost" type="button" @click="dismissDialog(null)">Cancel</button>
+                          <button class="btn" type="submit">Submit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </template>
+
+                  <!-- Editor Dialog -->
+                  <template x-if="extensionDialog?.type === 'editor'">
+                    <div class="ext-dialog ext-dialog-wide">
+                      <div class="ext-dialog-header">
+                        <div class="ext-dialog-title" x-text="extensionDialog.title"></div>
+                        <button class="ext-dialog-close" type="button" @click="dismissDialog(null)">&times;</button>
+                      </div>
+                      <div class="ext-dialog-description" x-show="extensionDialog.description" x-text="extensionDialog.description"></div>
+                      <form class="ext-dialog-form" @submit.prevent="submitEditorDialog()">
+                        <textarea
+                          class="ext-dialog-editor"
+                          x-model="extensionDialog.editorContent"
+                          rows="12"
+                          autofocus
+                        ></textarea>
+                        <div class="ext-dialog-actions">
+                          <button class="btn btn-ghost" type="button" @click="dismissDialog(null)">Cancel</button>
+                          <button class="btn" type="submit">Save</button>
+                        </div>
+                      </form>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- Toast Notifications -->
+                <div class="toast-container" x-show="toasts.length > 0" x-cloak>
+                  <template x-for="toast in toasts" :key="toast.id">
+                    <div class="toast" :class="`toast-${toast.level}`">
+                      <span class="toast-icon" x-text="toast.style.icon"></span>
+                      <span class="toast-message" x-text="toast.message"></span>
+                      <button class="toast-close" type="button" @click="removeToast(toast.id)">&times;</button>
+                    </div>
+                  </template>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section class="view config-view" x-show="view === 'config'" x-cloak role="tabpanel">
+          <div class="view-header">// config</div>
+          <div class="view-title">init.toml</div>
+          <div class="view-body" x-data="rhoConfig()" x-init="init()">
+            <div class="config-layout">
+              <div class="config-header">
+                <div>
+                  <div class="config-filename">init.toml</div>
+                  <div class="config-path" x-text="filePath"></div>
+                </div>
+                <div class="config-actions">
+                  <div class="config-status" :class="{ saved: saveStatus === 'saved', error: saveStatus === 'error' }" x-text="statusMessage()"></div>
+                  <button
+                    class="btn"
+                    type="button"
+                    @click="save()"
+                    :disabled="!dirty || isSaving"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+              <div class="config-error" x-show="error" x-text="error"></div>
+              <textarea
+                class="config-textarea"
+                x-model="content"
+                @input="handleInput()"
+                placeholder="Loading..."
+              ></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="view memory-view" x-show="view === 'memory'" x-cloak role="tabpanel">
+          <div class="view-header">// brain</div>
+          <div class="view-title">Agent brain</div>
+          <div class="view-body" x-data="rhoMemory()" x-init="init()">
+            <div class="memory-stats">
+              <span class="memory-stat">
+                <span class="memory-stat-value" x-text="stats.total">0</span>
+                <span class="memory-stat-label">total</span>
+              </span>
+              <span class="memory-stat">
+                <span class="memory-stat-value learning" x-text="stats.learnings">0</span>
+                <span class="memory-stat-label">learnings</span>
+              </span>
+              <span class="memory-stat">
+                <span class="memory-stat-value preference" x-text="stats.preferences">0</span>
+                <span class="memory-stat-label">preferences</span>
+              </span>
+              <span class="memory-stat">
+                <span class="memory-stat-value behavior" x-text="stats.behaviors">0</span>
+                <span class="memory-stat-label">behaviors</span>
+              </span>
+              <span class="memory-stat">
+                <span class="memory-stat-value task" x-text="stats.tasks">0</span>
+                <span class="memory-stat-label">tasks</span>
+              </span>
+              <span class="memory-stat">
+                <span class="memory-stat-value reminder" x-text="stats.reminders">0</span>
+                <span class="memory-stat-label">reminders</span>
+              </span>
+            </div>
+
+            <div class="memory-controls">
+              <div class="memory-filters">
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'all' }" type="button" @click="setType('all')">All</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'behavior' }" type="button" @click="setType('behavior')">Behavior</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'identity' }" type="button" @click="setType('identity')">Identity</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'user' }" type="button" @click="setType('user')">User</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'learning' }" type="button" @click="setType('learning')">Learning</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'preference' }" type="button" @click="setType('preference')">Preference</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'context' }" type="button" @click="setType('context')">Context</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'task' }" type="button" @click="setType('task')">Task</button>
+                <button class="memory-filter-btn" :class="{ active: typeFilter === 'reminder' }" type="button" @click="setType('reminder')">Reminder</button>
+              </div>
+              <div class="memory-filters-right">
+                <button class="memory-add-btn" type="button" @click="toggleAddForm()">
+                  <span x-text="showAddForm ? '✕ Cancel' : '+ Add entry'"></span>
+                </button>
+                <select class="memory-category-select" x-model="categoryFilter" @change="load()">
+                  <option value="">all categories</option>
+                  <template x-for="cat in stats.categories" :key="cat">
+                    <option :value="cat" x-text="cat"></option>
+                  </template>
+                </select>
+                <select class="memory-sort-select" x-model="sortBy" @change="changeSort()">
+                  <option value="created">newest</option>
+                  <option value="last_used">last used</option>
+                  <option value="used">most used</option>
+                  <option value="alpha">a-z</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Add entry form -->
+            <div class="memory-add-form" x-show="showAddForm" x-cloak>
+              <div class="memory-add-form-row">
+                <select class="memory-add-type-select" x-model="newEntryType">
+                  <option value="learning">Learning</option>
+                  <option value="preference">Preference</option>
+                  <option value="behavior">Behavior</option>
+                </select>
+                <input
+                  class="memory-add-category-input"
+                  type="text"
+                  placeholder="category"
+                  x-model="newEntryCategory"
+                  x-show="newEntryType === 'preference'"
+                />
+              </div>
+              <textarea
+                class="memory-add-textarea"
+                placeholder="Entry text... (for behavior: prefix with do: / don't: / value:)"
+                x-model="newEntryText"
+                rows="2"
+              ></textarea>
+              <div class="memory-add-form-actions">
+                <button class="btn btn-sm" type="button" @click="addEntry()" :disabled="!newEntryText.trim()">Save</button>
+                <button class="btn btn-sm btn-ghost" type="button" @click="toggleAddForm()">Cancel</button>
+              </div>
+            </div>
+
+            <div class="memory-search-wrap">
+              <input
+                class="memory-search"
+                type="text"
+                placeholder="search brain..."
+                x-model="searchQuery"
+                @input.debounce.300ms="load()"
+              />
+              <span class="memory-result-count" x-show="!isLoading" x-text="displayEntries.length + ' entries'"></span>
+            </div>
+
+            <div class="memory-error" x-show="error" x-text="error"></div>
+
+            <div class="memory-loading" x-show="isLoading">
+              <span class="loading-spinner"></span>
+              <span>Loading brain...</span>
+            </div>
+
+            <form class="memory-task-form" x-show="typeFilter === 'task'" @submit.prevent="addTask()">
+              <input type="text" x-model="newTaskDescription" placeholder="Task description..." class="memory-task-input" />
+              <select x-model="newTaskPriority" class="memory-task-priority">
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+              </select>
+              <button class="btn btn-sm" type="submit" :disabled="!newTaskDescription.trim()">Add</button>
+            </form>
+
+            <div class="memory-list" x-show="!isLoading && entries.length > 0">
+              <template x-for="entry in displayEntries" :key="entry.id">
+                <div class="memory-card" :class="[entry.type, isStale(entry) ? 'stale' : '', entry.status === 'done' ? 'done' : '', editingId === entry.id ? 'editing' : '']">
+                  <div class="memory-card-header">
+                    <div class="memory-card-badges">
+                      <label class="task-checkbox" x-show="entry.type === 'task'" @click.stop>
+                        <input type="checkbox" :checked="entry.status === 'done'" @change="toggleTask(entry)" />
+                      </label>
+                      <span class="memory-type-badge" :class="entry.type" x-text="entry.type"></span>
+                      <span class="memory-category-badge" x-show="entry.category && editingId !== entry.id" x-text="entry.category"></span>
+                      <span class="memory-category-badge" x-show="entry.key && editingId !== entry.id" x-text="entry.key"></span>
+                      <span class="memory-category-badge" x-show="entry.status && editingId !== entry.id" x-text="entry.status"></span>
+                      <span class="memory-category-badge" x-show="entry.enabled !== undefined && editingId !== entry.id" x-text="entry.enabled ? 'on' : 'off'"></span>
+                      <input
+                        class="memory-edit-category-input"
+                        type="text"
+                        x-model="editCategory"
+                        placeholder="category"
+                        x-show="editingId === entry.id && entry.type === 'preference'"
+                      />
+                    </div>
+                    <div class="memory-card-meta-right">
+                      <span class="memory-card-date" x-show="entry.due">due <span x-text="entry.due"></span></span>
+                      <span class="memory-card-date" x-text="entry.created || '--'"></span>
+                      <button class="memory-edit-btn" type="button" @click="startEdit(entry)" title="Edit entry" x-show="editingId !== entry.id">✏</button>
+                      <button class="memory-delete-btn" type="button" @click="entry.type === 'task' ? removeTask(entry) : remove(entry)" title="Delete entry" x-show="editingId !== entry.id">&times;</button>
+                    </div>
+                  </div>
+                  <!-- Normal view -->
+                  <div class="memory-card-text" x-show="editingId !== entry.id" x-text="entry._displayText || cardText(entry)"></div>
+                  <!-- Edit view -->
+                  <div x-show="editingId === entry.id">
+                    <textarea
+                      class="memory-edit-textarea"
+                      x-model="editText"
+                      rows="3"
+                      @keydown.escape="cancelEdit()"
+                    ></textarea>
+                    <div class="memory-edit-actions">
+                      <button class="btn btn-sm" type="button" @click="saveEdit(entry)" :disabled="!editText.trim()">Save</button>
+                      <button class="btn btn-sm btn-ghost" type="button" @click="cancelEdit()">Cancel</button>
+                    </div>
+                  </div>
+                  <div class="memory-card-footer" x-show="editingId !== entry.id">
+                    <span class="memory-card-usage" x-show="entry.used > 0">
+                      used <span x-text="entry.used"></span>x
+                    </span>
+                    <span class="memory-card-last-used" x-show="entry.last_used">
+                      last: <span x-text="entry.last_used"></span>
+                    </span>
+                    <span class="memory-card-enabled" x-show="entry.type === 'reminder'">
+                      <span x-text="entry.enabled ? '● active' : '○ disabled'"></span>
+                    </span>
+                    <span class="memory-card-cadence" x-show="entry.cadence" x-text="entry.cadence?.kind === 'interval' ? 'every ' + entry.cadence.every : 'daily @ ' + entry.cadence?.at"></span>
+                    <span class="memory-card-id" x-text="entry.id"></span>
+                  </div>
+                </div>
+              </template>
+              <div class="memory-empty" x-show="entries.length === 0 && !isLoading">
+                <span class="empty-icon">&#x1F9E0;</span>
+                <span>No matching entries</span>
+              </div>
+            </div>
+            <div class="memory-empty" x-show="!isLoading && entries.length === 0 && !error">
+              <span class="empty-icon">&#x1F9E0;</span>
+              <span>No matching entries</span>
+            </div>
+          </div>
+        </section>
+
+
+      </main>
+
+      <footer class="footer">
+        <div class="footer-inner">
+          <span class="footer-model">model: --</span>
+          <span class="footer-tokens">tokens: --</span>
+          <span class="footer-cost">cost: --</span>
+          <span class="footer-status">status: idle</span>
+          <span class="footer-ext-status"></span>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

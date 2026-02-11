@@ -1,0 +1,47 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Post-installation script for rho
+
+PI_DIR="$HOME/.pi/agent"
+RHO_DIR="$HOME/.rho"
+BRAIN_DIR="$RHO_DIR/brain"
+SHARE_DIR="$PREFIX/share/rho"
+
+echo "Setting up rho..."
+
+# Create directories
+mkdir -p "$PI_DIR" "$RHO_DIR" "$BRAIN_DIR"
+
+# Migrate legacy brain location
+if [ -d "$HOME/.pi/brain" ] && [ ! -d "$BRAIN_DIR" -o -z "$(ls -A "$BRAIN_DIR" 2>/dev/null)" ]; then
+  cp -r "$HOME/.pi/brain/"* "$BRAIN_DIR/" 2>/dev/null && \
+    echo "✓ Migrated brain: ~/.pi/brain -> $BRAIN_DIR"
+fi
+
+# Symlink extensions and skills
+rm -rf "$PI_DIR/extensions" "$PI_DIR/skills"
+ln -sf "$SHARE_DIR/extensions" "$PI_DIR/extensions"
+ln -sf "$SHARE_DIR/skills" "$PI_DIR/skills"
+
+echo "✓ Symlinked extensions and skills"
+
+# Bootstrap brain defaults
+for f in "$SHARE_DIR/brain"/*.jsonl.default; do
+  [ -f "$f" ] || continue
+  target="$BRAIN_DIR/$(basename "${f%.default}")"
+  if [ ! -f "$target" ]; then
+    cp "$f" "$target"
+    echo "✓ Created $(basename "$target")"
+  fi
+done
+
+# Install pi-coding-agent if not present
+if ! command -v pi &> /dev/null; then
+  echo "Installing pi-coding-agent..."
+  npm install -g @mariozechner/pi-coding-agent
+  echo "✓ Installed pi"
+else
+  echo "• pi already installed"
+fi
+
+echo ""
+echo "Rho setup complete! Run 'pi' to start."
