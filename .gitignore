@@ -1,0 +1,13 @@
+.bash_history
+.bash_logout
+.bashrc
+.profile
+.cache/
+.local/
+.nvm/
+.npm/
+.ssh/
+node_modules/
+*.log
+.pi/agent/auth.json
+.config/telegram/telegram.env

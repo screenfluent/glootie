@@ -1,0 +1,8 @@
+{
+  "rho_source": "/home/glootie/rho",
+  "rho_version": "0.1.0",
+  "managed_packages": [
+    "npm:pi-subagents"
+  ],
+  "last_sync": "2026-02-11T09:49:51.741Z"
+}

@@ -1,0 +1,23 @@
+{
+  "packages": [
+    "npm:pi-subagents",
+    {
+      "source": "/home/glootie/rho",
+      "_managed_by": "rho",
+      "extensions": [
+        "extensions/**/*.ts",
+        "extensions/**/*.js",
+        "!extensions/email/**"
+      ],
+      "skills": [
+        "skills/*",
+        "!skills/rho-cloud-email",
+        "!skills/rho-cloud-onboard"
+      ]
+    }
+  ],
+  "lastChangelogVersion": "0.52.9",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-4-6",
+  "defaultThinkingLevel": "medium"
+}

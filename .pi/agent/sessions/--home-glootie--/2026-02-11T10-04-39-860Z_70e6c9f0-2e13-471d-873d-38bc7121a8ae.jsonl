@@ -1,0 +1,6 @@
+{"type":"session","version":3,"id":"70e6c9f0-2e13-471d-873d-38bc7121a8ae","timestamp":"2026-02-11T10:04:39.860Z","cwd":"/home/glootie"}
+{"type":"thinking_level_change","id":"ca04f9e9","parentId":null,"timestamp":"2026-02-11T10:04:39.862Z","thinkingLevel":"off"}
+{"type":"model_change","id":"bee62dab","parentId":"ca04f9e9","timestamp":"2026-02-11T10:10:36.870Z","provider":"anthropic","modelId":"claude-opus-4-6"}
+{"type":"thinking_level_change","id":"4d9ee77a","parentId":"bee62dab","timestamp":"2026-02-11T10:10:52.972Z","thinkingLevel":"medium"}
+{"type":"message","id":"9c5c64c8","parentId":"4d9ee77a","timestamp":"2026-02-11T10:11:16.113Z","message":{"role":"user","content":[{"type":"text","text":"/exit"}],"timestamp":1770804676095}}
+{"type":"message","id":"f7d94e06","parentId":"9c5c64c8","timestamp":"2026-02-11T10:11:18.009Z","message":{"role":"assistant","content":[],"api":"anthropic-messages","provider":"anthropic","model":"claude-opus-4-6","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"aborted","timestamp":1770804676104,"errorMessage":"Operation aborted"}}

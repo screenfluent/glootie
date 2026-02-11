@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "enabled": true,
+  "intervalMs": 1800000,
+  "heartbeatModel": null,
+  "updatedAt": 1770804281145,
+  "writerPid": 88844
+}

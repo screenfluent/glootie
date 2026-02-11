@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "intervalMs": 1800000,
+  "lastCheckAt": null,
+  "nextCheckAt": 1770806081145,
+  "checkCount": 0,
+  "heartbeatModel": null
+}
